@@ -1,0 +1,88 @@
+@Library('shared-library')
+
+pipeline {
+    agent any
+
+    stages {
+        stage('Checkout Code') {
+            agent { label 'linux' }  
+            steps {
+                echo 'Pulling code from GitHub branch'
+                git branch: 'soultions_2025', url: "${GITHUB_REPO}"
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            agent { label 'test' }
+            steps {
+                echo 'Running SonarQube analysis for Node.js project'
+                withSonarQubeEnv("${SONARQUBE_ENV}") {
+                    sh """
+                        ${SONAR_SCANNER}/bin/sonar-scanner \
+                        -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                        -Dsonar.sources=. \
+                        -Dsonar.javascript.lcov.reportPaths=coverage/lcov.info \
+                        -Dsonar.sourceEncoding=UTF-8
+                    """
+                }
+            }
+        }
+    }
+}
+
+//         stage('Docker Build') {
+//             agent { label 'docker' }
+//             steps {
+//                 echo 'Building Docker image'
+//                 script {
+//                     docker.build("${DOCKER_IMAGE}:${BUILD_NUMBER}")
+//                 }
+//             }
+//         }
+
+//         stage('Trivy Scan') {
+//             agent { label 'docker' }
+//             steps {
+//                 echo 'Running Trivy scan'
+//                 sh "trivy image --severity HIGH,CRITICAL --exit-code 1 --no-progress ${DOCKER_IMAGE}:${BUILD_NUMBER}"
+//             }
+//         }
+
+//         stage('Push to DockerHub') {
+//             agent { label 'docker' }
+//             steps {
+//                 echo 'Pushing image to DockerHub'
+//                 withDockerRegistry([credentialsId: 'dockerhub-credentials-id', url: 'https://index.docker.io/v1/']) {
+//                     docker.image("${DOCKER_IMAGE}:${BUILD_NUMBER}").push()
+//                 }
+//             }
+//         }
+
+//         stage('Deploy') {
+//             agent { label 'linux' }
+//             steps {
+//                 echo 'Deploying to Kubernetes'
+//                 sh 'kubectl apply -f k8s/deployment.yaml'
+//             }
+//         }
+//     }
+
+//     post {
+//         success {
+//             script {
+//                 notifySlack('SUCCESS', env.BUILD_URL)
+//             }
+//             mail to: "${RECIPIENTS}",
+//                  subject: "SUCCESS - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+//                  body: "Build completed successfully. View it: ${env.BUILD_URL}"
+//         }
+//         failure {
+//             script {
+//                 notifySlack('FAILURE', env.BUILD_URL)
+//             }
+//             mail to: "${RECIPIENTS}",
+//                  subject: "FAILURE - ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+//                  body: "Build failed. View logs: ${env.BUILD_URL}"
+//         }
+//     }
+// }
