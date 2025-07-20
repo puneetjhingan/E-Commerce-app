@@ -33,6 +33,41 @@ pipeline {
                       -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
                       -Dsonar.sources=. \
                       -Dsonar.host.url=${SONAR_HOST_URL} > sonar.log 2>&1
+                    "pipeline {
+    agent any
+
+    environment {
+        GIT_BRANCH = 'solutions_2025'
+        GIT_REPO = 'https://github.com/puneetjhingan/E-Commerce-app'
+        SONAR_PROJECT_KEY = 'my-project-key'
+        SONAR_HOST_URL = 'http://127.0.0.1:9000'
+        SONARQUBE_ENV_NAME = 'sonarserver'
+
+        DOCKER_IMAGE = 'e-commerce-app'
+        DOCKER_TAG = "${BUILD_NUMBER}" // Use Jenkins build number as tag
+        DOCKERHUB_CREDENTIALS = 'dockerhub-creds
+        DOCKERHUB_URL = 'https://index.docker.io/v1/'
+    }
+
+    stages {
+        stage('Checkout Code') {
+            agent { label 'linux' }
+            steps {
+                echo "Pulling code from GitHub branch ${GIT_BRANCH}"
+                git branch: "${GIT_BRANCH}", url: "${GIT_REPO}"
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            agent { label 'test' }
+            steps {
+                echo 'Running SonarQube analysis for Node.js project'
+                withSonarQubeEnv("${SONARQUBE_ENV_NAME}") {
+                    sh """
+                    sonar-scanner \
+                      -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                      -Dsonar.sources=. \
+                      -Dsonar.host.url=${SONAR_HOST_URL} > sonar.log 2>&1
                     """
                 }
             }
@@ -76,4 +111,55 @@ pipeline {
             }
         }
     }
-}
+}""
+                }
+            }
+        }
+
+        stage('Docker Build') {
+            agent { label 'docker' }
+            steps {
+                echo 'Building Docker image'
+                script {
+                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
+                }
+            }
+        }
+
+        stage('Trivy Scan') {
+            agent { label 'docker' }
+            steps {
+                echo 'Running Trivy vulnerability scan'
+                sh "trivy image --severity CRITICAL --exit-code 1 --no-progress ${DOCKER_IMAGE}:${DOCKER_TAG} > trivy.log 2>&1 "
+            }
+        }
+
+        stage('Push to DockerHub') {
+            agent { label 'docker' }
+            steps {
+                echo 'Pushing Docker image to DockerHub'
+                withDockerRegistry([credentialsId: "${DOCKERHUB_CREDENTIALS}", url: "${DOCKERHUB_URL}"]) {
+                    script {
+                        docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push()
+                    }
+                }
+            }
+        }
+
+        stage('Deploy') {
+            agent { label 'linux' }
+            steps {
+                echo 'Deploying Docker container'
+                sh "docker run -d --name e-commerce-app -p 3000:3000 ${DOCKER_IMAGE}:${DOCKER_TAG}"
+            }
+        }
+    }
+    post {
+        
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed. Check logs for details.'
+        }
+    }
