@@ -60,10 +60,11 @@ pipeline {
             agent { label 'docker' }
             steps {
                 echo 'Pushing Docker image to DockerHub'
-                withDockerRegistry([credentialsId: "${DOCKERHUB_CREDENTIALS}", url: "${DOCKERHUB_URL}"]) {
-                    script {
+                script {
+                    docker.withRegistry("${DOCKERHUB_URL}", "${DOCKERHUB_CREDENTIALS}") {
                         docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push()
                     }
+                    echo "Docker image ${DOCKER_IMAGE}:${DOCKER_TAG} pushed successfully"
                 }
             }
         }
