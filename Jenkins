@@ -9,29 +9,30 @@ pipeline {
         SONARQUBE_ENV_NAME = 'sonarserver'
 
         DOCKER_IMAGE = 'puneetjhingan/e-commerce-app'
-        DOCKER_TAG = "${BUILD_NUMBER}" // Use Jenkins build number as tag
-        DOCKERHUB_CREDENTIALS = 'dockerhub-creds' // Fixed missing quote
+        DOCKER_TAG = "${BUILD_NUMBER}"
+        DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
         DOCKERHUB_URL = 'https://index.docker.io/v1/'
     }
 
     stages {
         stage('Checkout Code') {
-    agent { label 'linux' }
-    steps {
-        echo "Pulling code from GitHub branch ${GIT_BRANCH}"
-        git branch: "${GIT_BRANCH}", url: "${GIT_REPO}", credentialsId: 'github-creds'
-    }
-}
+            agent { label 'linux' }
+            steps {
+                echo "Pulling code from GitHub branch ${GIT_BRANCH}"
+                git branch: "${GIT_BRANCH}", url: "${GIT_REPO}", credentialsId: 'github-creds'
+            }
+        }
+
         stage('SonarQube Analysis') {
             agent { label 'test' }
             steps {
                 echo 'Running SonarQube analysis for Node.js project'
                 withSonarQubeEnv("${SONARQUBE_ENV_NAME}") {
                     sh """
-                    sonar-scanner \
-                      -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                      -Dsonar.sources=. \
-                      -Dsonar.host.url=${SONAR_HOST_URL} > sonar.log 2>&1
+                        sonar-scanner \
+                          -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                          -Dsonar.sources=. \
+                          -Dsonar.host.url=${SONAR_HOST_URL} > sonar.log 2>&1
                     """
                 }
             }
@@ -67,6 +68,14 @@ pipeline {
                 }
             }
         }
+        
+        stage('Manual Approval') {
+            steps {
+                script {
+                    input message: 'Manual approval required to deploy to production.', ok: 'Deploy'
+                }
+            }
+        }
 
         stage('Deploy') {
             agent { label 'linux' }
@@ -76,10 +85,16 @@ pipeline {
             }
         }
     }
-    post{
-        if (deploy == success) {
-        echo 'pipeline completed successfully!'
-    } else {
-        error 'pipeline failed!'
+
+    post {
+        success {
+            echo 'Pipeline completed successfully!'
+        }
+        failure {
+            echo 'Pipeline failed!'
+        }
+        always {
+            archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
+        }
     }
-    }
+}
