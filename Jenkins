@@ -16,8 +16,9 @@ pipeline {
 
     stages {
         stage('Checkout Code') {
+            agent { label 'linux' }
             steps {
-                echo "Checking out branch ${GIT_BRANCH}"
+                echo "Pulling code from GitHub branch ${GIT_BRANCH}"
                 git branch: "${GIT_BRANCH}", url: "${GIT_REPO}", credentialsId: 'github-creds'
             }
         }
@@ -67,7 +68,7 @@ pipeline {
                 }
             }
         }
-
+        
         stage('Manual Approval') {
             steps {
                 script {
