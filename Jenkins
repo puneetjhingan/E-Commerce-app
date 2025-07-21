@@ -16,13 +16,12 @@ pipeline {
 
     stages {
         stage('Checkout Code') {
-            agent { label 'linux' }
             steps {
-                echo "Pulling code from GitHub branch ${GIT_BRANCH}"
-                git branch: "${GIT_BRANCH}", url: "${GIT_REPO}", credentialsId: 'github-creds'
+                checkout scm
+                echo "Checked out branch ${env.BRANCH_NAME}"
             }
         }
-
+    }
         stage('SonarQube Analysis') {
             agent { label 'test' }
             steps {
@@ -68,7 +67,7 @@ pipeline {
                 }
             }
         }
-        
+
         stage('Manual Approval') {
             steps {
                 script {
