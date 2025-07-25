@@ -20,7 +20,7 @@ pipeline {
             agent { label 'linux' }
             steps {
                 echo "Pulling code from GitHub branch ${GIT_BRANCH}"
-                git branch: "${GIT_BRANCH}", url: "${GIT_REPO}", credentialsId: 'github-creds'
+              //  git branch: "${GIT_BRANCH}", url: "${GIT_REPO}", credentialsId: 'github-creds' // uncomment this if notusing scm option
             }
         }
 
