@@ -16,23 +16,25 @@ pipeline {
 
     stages {
         stage('Checkout Code') {
-            agent { label 'linux' }
+            agent { label 'linux' }  # nodes specified will run the jobs as per labels 
             steps {
                 echo "Pulling code from GitHub branch ${GIT_BRANCH}"
                 git branch: "${GIT_BRANCH}", url: "${GIT_REPO}", credentialsId: 'github-creds'
             }
         }
-
         stage('SonarQube Analysis') {
             agent { label 'test' }
             steps {
-                echo 'Running SonarQube analysis for Node.js project'
+                echo 'Running SonarQube analysis for easy-shop project'
                 withSonarQubeEnv("${SONARQUBE_ENV_NAME}") {
                     sh """
                         sonar-scanner \
-                          -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                          -Dsonar.sources=. \
-                          -Dsonar.host.url=${SONAR_HOST_URL} > sonar.log 2>&1
+                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                            -Dsonar.sources=src \
+                            -Dsonar.inclusions=**/*.{ts,tsx,js,jsx} \
+                            -Dsonar.exclusions=node_modules/**,.next/**,.db/**,Terraform/**,kubernetes/**,public/**,scripts/**,coverage/**,*.dockerignore,.env,Dockerfile*,README.md,LICENSE,package-lock.json,yarn.lock,postcss.config.js,tailwind.config.ts,next.config.*,docker-compose.yml,ecosystem.config.cjs \
+                            -Dsonar.typescript.tsconfigPath=tsconfig.json \
+                            -Dsonar.host.url=${SONAR_HOST_URL} > sonar.log 2>&1
                     """
                 }
             }
@@ -92,9 +94,6 @@ pipeline {
         }
         failure {
             echo 'Pipeline failed!'
-        }
-        always {
-            archiveArtifacts artifacts: '*.log', allowEmptyArchive: true
         }
     }
 }
