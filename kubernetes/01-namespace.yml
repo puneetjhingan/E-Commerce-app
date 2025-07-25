@@ -4,4 +4,4 @@ metadata:
   name: easyshop
   labels:
     name: easyshop
-    environment: production
+    environment: dev
