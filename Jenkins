@@ -16,7 +16,7 @@ pipeline {
 
     stages {
         stage('Checkout Code') {
-            agent { label 'linux' }  # nodes specified will run the jobs as per labels 
+            agent { label 'linux' }  // nodes specified will run the jobs as per labels 
             steps {
                 echo "Pulling code from GitHub branch ${GIT_BRANCH}"
                 git branch: "${GIT_BRANCH}", url: "${GIT_REPO}", credentialsId: 'github-creds'
