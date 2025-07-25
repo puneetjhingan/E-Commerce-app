@@ -70,8 +70,21 @@ pipeline {
                 }
             }
         }
-        
-        stage('Manual Approval') {
+
+        stage('Deploy to Production') {   // Check gate condition #1
+            when {
+                branch 'solutions_2025'
+                }
+                steps {
+                    echo 'Move to manual approval stage...'
+                }
+            }
+        }
+
+        stage('Manual Approval') {  // Check gate condition #2
+            when {
+                expression { return env.BRANCH_NAME == 'solutions_2025' }
+            }
             steps {
                 script {
                     input message: 'Manual approval required to deploy to production.', ok: 'Deploy'
