@@ -9,7 +9,7 @@ pipeline {
         SONARQUBE_ENV_NAME = 'sonarserver'
         BRANCH_NAME = "${GIT_BRANCH}"
 
-        DOCKER_IMAGE = 'puneetjhingan/e-commerce-app'
+        DOCKER_IMAGE = 'puneetjhingan/easyshop-app'
         DOCKER_TAG = "${BUILD_NUMBER}"
         DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
         DOCKERHUB_URL = 'https://index.docker.io/v1/'
