@@ -1,13 +1,13 @@
 # Node & Package Manager
 node_modules
-npm-debug.log
-Dockerfile
 .dockerignore
-*.md
+Dockerfile
 .git
 .gitignore
+*.md
+*.log
 .env
-
+tests
 
 # Next.js build output
 .next
