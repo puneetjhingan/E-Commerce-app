@@ -1,24 +1,28 @@
-# Stage 1: Build
+#Stage 1: Build Stage
 FROM node:18-alpine AS builder
 
+# Set working directory
 WORKDIR /app
 
-# Install build dependencies
-RUN apk add --no-cache --virtual .build-deps python3 make g++
+# Install necessary build dependencies
+RUN apk add --no-cache python3 make g++
+
+# Copy package files
+COPY package*.json ./
 
 # Install dependencies
-COPY package*.json ./
 RUN npm ci
 
-# Copy source code
+# Copy all project files
 COPY . .
 
-# Build the application
+# Build the Next.js application
 RUN npm run build
-
-# Stage 2: Runtime (can be renamed to development only if truly for dev)
+#-----------------------------------------------------------------#
+# Stage 2: Dev Stage
 FROM node:18-alpine AS runner
 
+# Set working directory
 WORKDIR /app
 
 # Add a non-root user
