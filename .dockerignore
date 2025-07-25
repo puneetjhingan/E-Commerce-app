@@ -2,12 +2,16 @@
 node_modules
 .dockerignore
 Dockerfile
+*.log
+*.md
 .git
 .gitignore
-*.md
-*.log
 .env
+.env.*
+coverage
 tests
+.vscode
+
 
 # Next.js build output
 .next
