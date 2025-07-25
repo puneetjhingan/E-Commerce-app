@@ -1,9 +1,10 @@
- Stage 1: Build Stage
+# Stage 1: Build Stage
 FROM node:18-alpine AS builder
 
 WORKDIR /app
 
 # Install build tools
+RUN apk add --no-cache python3 make g++
 RUN apk add --no-cache python3 make g++
 RUN apk add --no-cache python3 make g++
 
