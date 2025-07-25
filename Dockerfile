@@ -1,48 +1,44 @@
-# Stage 1: Build the app 
+ Stage 1: Build Stage
 FROM node:18-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Install dependencies needed to build native Node modules
+# Install build tools
+RUN apk add --no-cache python3 make g++
 RUN apk add --no-cache python3 make g++
 
-# Copy package files and install dependencies
+# Copy package files
 COPY package*.json ./
+
+# Install dependencies
 RUN npm ci
 
-# Copy remaining source code
+# Copy source code
 COPY . .
 
-# Generate Next.js standalone production build
+# Build the application
 RUN npm run build
 
-# Stage 2: Create lean production image
+# Stage 2: Production
 FROM node:18-alpine AS runner
 
-# Set environment variables
-ENV NODE_ENV=production
-ENV PORT=3000
-
-# Create non-root user
-RUN addgroup -S appgroup && adduser -S appuser -G appgroup
-
-# Set working directory
 WORKDIR /app
 
-# Copy only the necessary production files
+# Add a non-root user for security
+RUN addgroup -S appgroup && adduser -S appuser -G appgroup
+
+# Copy only necessary runtime files
 COPY --from=builder /app/.next/standalone ./
 COPY --from=builder /app/.next/static ./.next/static
 COPY --from=builder /app/public ./public
 COPY --from=builder /app/package.json ./package.json
 
-# Change ownership of files to the non-root user
-RUN chown -R appuser:appgroup /app
-
 # Use non-root user
 USER appuser
+# Set environment
+ENV NODE_ENV=production
+ENV PORT=3000
 
-# Expose application port
 EXPOSE 3000
 
 # Start the app
