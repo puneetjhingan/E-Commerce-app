@@ -92,6 +92,7 @@ pipeline {
         stage('Kubernetes Apply') {
             agent { label 'linux' }
             steps {
+                dir('E-Commerce-app/kubernetes') 
                 echo 'Deploying all Kubernetes manifests...'
                 sh '''
                 kubectl apply -f 01-namespace.yml
