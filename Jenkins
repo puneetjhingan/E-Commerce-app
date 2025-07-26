@@ -13,13 +13,14 @@ pipeline {
         DOCKER_TAG = "${BUILD_NUMBER}"
         DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
         DOCKERHUB_URL = 'https://index.docker.io/v1/'
-        DEPLOYMENT_NAME = 'easyshop'
+        DEPLOYMENT_NAME = 'easyshop-deployment'
         NAMESPACE = 'easyshop'
         IMAGE_NAME = 'puneetjhingan/easyshop:2.0'
         CONTAINER_NAME = 'easyshop'
     }
 
     stages {
+
         stage('Checkout Code') {
             agent { label 'linux' }
             steps {
@@ -40,7 +41,7 @@ pipeline {
                             -Dsonar.inclusions=**/*.{ts,tsx,js,jsx} \
                             -Dsonar.exclusions=node_modules/**,.next/**,.db/**,Terraform/**,kubernetes/**,public/**,scripts/**,coverage/**,*.dockerignore,.env,Dockerfile*,README.md,LICENSE,package-lock.json,yarn.lock,postcss.config.js,tailwind.config.ts,next.config.*,docker-compose.yml,ecosystem.config.cjs \
                             -Dsonar.typescript.tsconfigPath=tsconfig.json \
-                            -Dsonar.host.url=${SONAR_HOST_URL} > sonar.log 2>&1
+                            -Dsonar.host.url=${SONAR_HOST_URL}
                     '''
                 }
             }
@@ -60,7 +61,7 @@ pipeline {
             agent { label 'docker' }
             steps {
                 echo 'Running Trivy vulnerability scan'
-                sh "trivy image --severity CRITICAL --exit-code 1 --no-progress ${DOCKER_IMAGE}:${DOCKER_TAG} > trivy.log 2>&1"
+                sh "trivy image --severity CRITICAL --exit-code 1 --no-progress ${DOCKER_IMAGE}:${DOCKER_TAG}"
             }
         }
 
@@ -77,15 +78,6 @@ pipeline {
             }
         }
 
-        stage('Deploy to Production') {
-            when {
-                branch 'solutions_2025'
-            }
-            steps {
-                echo 'Moving to manual approval stage...'
-            }
-        }
-
         stage('Manual Approval') {
             when {
                 expression { return env.BRANCH_NAME == 'solutions_2025' }
@@ -97,27 +89,7 @@ pipeline {
             }
         }
 
-        stage('Deploy to Production') {
-            when {
-                branch 'solutions_2025'
-            }
-            steps {
-                echo 'Moving to manual approval stage...'
-            }
-        }
-
-        stage('Manual Approval') {
-            when {
-                expression { return env.BRANCH_NAME == 'solutions_2025' }
-            }
-            steps {
-                script {
-                    input message: 'Manual approval required to deploy to production.', ok: 'Deploy'
-                    }
-                }
-            }
-    
-        stage('kubernetes') {
+        stage('Kubernetes Apply') {
             agent { label 'linux' }
             steps {
                 echo 'Deploying all Kubernetes manifests...'
@@ -137,11 +109,11 @@ pipeline {
                 '''
             }
         }
-        
+
         stage('Decide Rollout or Rollback') {
+            agent { label 'linux' }
             steps {
                 script {
-                    // Get rollout history output
                     def rolloutHistory = sh(
                         script: "kubectl rollout history deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE}",
                         returnStdout: true
@@ -149,18 +121,16 @@ pipeline {
 
                     echo "Rollout history:\n${rolloutHistory}"
 
-                    if (rolloutHistory?.contains("REVISION")) {
-                        echo "Revision(s) found. Performing rollback to last revision."
+                    if (rolloutHistory.contains("REVISION")) {
+                        echo "Previous revision found. Rolling back..."
                         sh """
                             kubectl rollout undo deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE}
                             kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=120s
                         """
                     } else {
-                        echo "No revision history found. Updating deployment image and rolling out."
+                        echo "No revision found. Setting image and deploying..."
                         sh """
-                            kubectl set image deployment/ ${CONTAINER_NAME}=${IMAGE_NAME} -n ${NAMESPACE}
-                            kubectl set image deployment/${DEPLOYMENT_NAME}r=-n easyshop
-
+                            kubectl set image deployment/${DEPLOYMENT_NAME} ${CONTAINER_NAME}=${IMAGE_NAME} -n ${NAMESPACE}
                             kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=120s
                         """
                     }
