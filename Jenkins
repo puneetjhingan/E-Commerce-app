@@ -13,6 +13,10 @@ pipeline {
         DOCKER_TAG = "${BUILD_NUMBER}"
         DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
         DOCKERHUB_URL = 'https://index.docker.io/v1/'
+        DEPLOYMENT_NAME = 'easyshop'
+        NAMESPACE = 'easyshop'
+        IMAGE_NAME = 'puneetjhingan/easyshop:2.0'
+        CONTAINER_NAME = 'easyshop'
     }
 
     stages {
@@ -20,7 +24,7 @@ pipeline {
             agent { label 'linux' }
             steps {
                 echo "Pulling code from GitHub branch ${GIT_BRANCH}"
-              //  git branch: "${GIT_BRANCH}", url: "${GIT_REPO}", credentialsId: 'github-creds' // uncomment this if notusing scm option
+                // git branch: "${GIT_BRANCH}", url: "${GIT_REPO}", credentialsId: 'github-creds'
             }
         }
 
@@ -93,21 +97,75 @@ pipeline {
             }
         }
 
-        stage('Deploy') {
-            agent { label 'linux' }
+        stage('Deploy to Production') {
+            when {
+                branch 'solutions_2025'
+            }
             steps {
-                echo 'Deploying Docker container'
-                sh "docker run -d --name e-commerce-app -p 3000:3000 ${DOCKER_IMAGE}:${DOCKER_TAG}"
+                echo 'Moving to manual approval stage...'
             }
         }
-    }
 
-    post {
-        success {
-            echo 'Pipeline completed successfully!'
+        stage('Manual Approval') {
+            when {
+                expression { return env.BRANCH_NAME == 'solutions_2025' }
+            }
+            steps {
+                script {
+                    input message: 'Manual approval required to deploy to production.', ok: 'Deploy'
+                    }
+                }
+            }
+    
+        stage('kubernetes') {
+            agent { label 'linux' }
+            steps {
+                echo 'Deploying all Kubernetes manifests...'
+                sh '''
+                kubectl apply -f 01-namespace.yml
+                kubectl apply -f 02-mongodb-pv.yml
+                kubectl apply -f 03-mongodb-pvc.yml
+                kubectl apply -f 04-configmap.yml
+                kubectl apply -f 05-secrets.yml
+                kubectl apply -f 06-mongodb-service.yml
+                kubectl apply -f 07-mongodb-statefulset.yml
+                kubectl apply -f 08-easyshop-deployment.yml
+                kubectl apply -f 09-easyshop-service.yml
+                kubectl apply -f 10-ingress.yml
+                kubectl apply -f 11-hpa.yml
+                kubectl apply -f 12-migration-job.yml
+                '''
+            }
         }
-        failure {
-            echo 'Pipeline failed!'
+        
+        stage('Decide Rollout or Rollback') {
+            steps {
+                script {
+                    // Get rollout history output
+                    def rolloutHistory = sh(
+                        script: "kubectl rollout history deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE}",
+                        returnStdout: true
+                    ).trim()
+
+                    echo "Rollout history:\n${rolloutHistory}"
+
+                    if (rolloutHistory?.contains("REVISION")) {
+                        echo "Revision(s) found. Performing rollback to last revision."
+                        sh """
+                            kubectl rollout undo deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE}
+                            kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=120s
+                        """
+                    } else {
+                        echo "No revision history found. Updating deployment image and rolling out."
+                        sh """
+                            kubectl set image deployment/ ${CONTAINER_NAME}=${IMAGE_NAME} -n ${NAMESPACE}
+                            kubectl set image deployment/${DEPLOYMENT_NAME}r=-n easyshop
+
+                            kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=120s
+                        """
+                    }
+                }
+            }
         }
     }
 }
