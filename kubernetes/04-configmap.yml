@@ -6,5 +6,11 @@ metadata:
 data:
   MONGODB_URI: "mongodb://mongodb-service:27017/easyshop"
   NODE_ENV: "dev"
-  NEXT_PUBLIC_API_URL: "http://localhost:3000/api"
-  NEXTAUTH_URL: "http://localhost:3000"
+
+  # use this when running locally
+  #NEXT_PUBLIC_API_URL: "http://localhost:30000/api" # Set NodePort in service to 30000
+  #NEXTAUTH_URL: "http://localhost:30000"
+
+  # use this when using ingress
+  NEXTAUTH_URL: "http://172.18.0.2.nip.io" # set ingress port to 80 along with service port 80
+  NEXT_PUBLIC_API_URL: "http://172.18.0.2.nip.io/api"

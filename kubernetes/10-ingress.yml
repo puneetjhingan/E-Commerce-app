@@ -8,7 +8,7 @@ metadata:
 spec:
   ingressClassName: nginx
   rules:
-    - host: 127.0.0.1.nip.io
+    - host: 172.18.0.2.nip.io  #node ip address and using nip.io will convert it to a domain
       http:
         paths:
           - path: /
@@ -18,4 +18,3 @@ spec:
                 name: easyshop-service
                 port:
                   number: 80
-
