@@ -9,13 +9,13 @@ pipeline {
         SONARQUBE_ENV_NAME = 'sonarserver'
         BRANCH_NAME = "${GIT_BRANCH}"
 
-        DOCKER_IMAGE = 'puneetjhingan/easyshop-app'
+        DOCKER_IMAGE = 'puneetjhingan/easyshop'
         DOCKER_TAG = "${BUILD_NUMBER}"
         DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
         DOCKERHUB_URL = 'https://index.docker.io/v1/'
         DEPLOYMENT_NAME = 'easyshop-deployment'
         NAMESPACE = 'easyshop'
-        IMAGE_NAME = 'puneetjhingan/easyshop:2.0'
+        IMAGE_NAME = 'puneetjhingan/easyshop:1.0'
         CONTAINER_NAME = 'easyshop'
     }
 
@@ -89,54 +89,69 @@ pipeline {
             }
         }
 
-        stage('Kubernetes Apply') {
+        //Option 1 (Manual deployment)
+
+//         stage('Kubernetes Apply') {
+//             agent { label 'linux' }
+//             steps {
+//                 dir('E-Commerce-app/kubernetes') {
+//                     echo 'Applying Kubernetes manifests'
+//                     sh '''
+//                         kubectl apply -f 01-namespace.yml
+//                         kubectl apply -f 02-mongodb-pv.yml
+//                         kubectl apply -f 03-mongodb-pvc.yml
+//                         kubectl apply -f 04-configmap.yml
+//                         kubectl apply -f 05-secrets.yml
+//                         kubectl apply -f 06-mongodb-service.yml
+//                         kubectl apply -f 07-mongodb-statefulset.yml
+//                         kubectl apply -f 08-easyshop-deployment.yml
+//                         kubectl apply -f 09-easyshop-service.yml
+//                         kubectl apply -f 10-ingress.yml
+//                         kubectl apply -f 11-hpa.yml
+//                         kubectl apply -f 12-migration-job.yml
+//             '''
+//         }
+//     }
+// }
+
+  // options 2 ( Helm deployment)
+
+        HELM_DIR = 'E-Commerce-app/helm'
+    }
+        stage('Helm Deployment') {
             agent { label 'linux' }
             steps {
-                dir('E-Commerce-app/kubernetes') 
-                echo 'Deploying all Kubernetes manifests...'
-                sh '''
-                kubectl apply -f 01-namespace.yml
-                kubectl apply -f 02-mongodb-pv.yml
-                kubectl apply -f 03-mongodb-pvc.yml
-                kubectl apply -f 04-configmap.yml
-                kubectl apply -f 05-secrets.yml
-                kubectl apply -f 06-mongodb-service.yml
-                kubectl apply -f 07-mongodb-statefulset.yml
-                kubectl apply -f 08-easyshop-deployment.yml
-                kubectl apply -f 09-easyshop-service.yml
-                kubectl apply -f 10-ingress.yml
-                kubectl apply -f 11-hpa.yml
-                kubectl apply -f 12-migration-job.yml
-                '''
-            }
-        }
+                dir("${HELM_DIR}") {
+                    echo '📦 Deploying using Helm charts'
+                    withCredentials([
+                        string(credentialsId: 'jwt-secret', variable: 'JWT_SECRET'),
+                        string(credentialsId: 'nextauth-secret', variable: 'NEXTAUTH_SECRET'),
+                        string(credentialsId: 'mongo-username', variable: 'MONGO_USERNAME'),
+                        string(credentialsId: 'mongo-password', variable: 'MONGO_PASSWORD')
+                    ]) {
+                        sh '''
 
-        stage('Decide Rollout or Rollback') {
-            agent { label 'linux' }
-            steps {
-                script {
-                    def rolloutHistory = sh(
-                        script: "kubectl rollout history deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE}",
-                        returnStdout: true
-                    ).trim()
-
-                    echo "Rollout history:\n${rolloutHistory}"
-
-                    if (rolloutHistory.contains("REVISION")) {
-                        echo "Previous revision found. Rolling back..."
-                        sh """
-                            kubectl rollout undo deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE}
-                            kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=120s
-                        """
-                    } else {
-                        echo "No revision found. Setting image and deploying..."
-                        sh """
-                            kubectl set image deployment/${DEPLOYMENT_NAME} ${CONTAINER_NAME}=${IMAGE_NAME} -n ${NAMESPACE}
-                            kubectl rollout status deployment/${DEPLOYMENT_NAME} -n ${NAMESPACE} --timeout=120s
-                        """
+                            helm upgrade --install easyshop ./helm \
+                              --namespace easyshop --create-namespace \
+                              --set-file secrets.JWT_SECRET=./helm-secrets/jwt-secret.txt \
+                              --set-file secrets.NEXTAUTH_SECRET=./helm-secrets/nextauth-secret.txt \
+                              --set-file secrets.MONGO_USERNAME=./helm-secrets/mongo-username.txt \
+                              --set-file secrets.MONGO_PASSWORD=./helm-secrets/mongo-password.txt \
+                              --set mongodb.auth.usernames[0]=$(cat ./helm-secrets/mongo-username.txt | tr -d '\\n') \
+                              --set mongodb.auth.databases[0]=easyshopdb
+                        '''
                     }
                 }
             }
+        }
+    }
+
+    post {
+        failure {
+            echo '❌ Pipeline failed. Please check the logs.'
+        }
+        always {
+            cleanWs()
         }
     }
 }
