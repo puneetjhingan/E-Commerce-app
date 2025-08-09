@@ -24,7 +24,7 @@ pipeline {
             agent { label 'linux' }
             steps {
                 echo "Checking out branch ${GIT_BRANCH} from ${GIT_REPO}"
-                git branch: "${GIT_BRANCH}", url: "${GIT_REPO}" // Add credentialsId if private repo
+                //git branch: "${GIT_BRANCH}", url: "${GIT_REPO}"
             }
         }
 
