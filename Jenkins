@@ -140,5 +140,4 @@ stage('Helm Deployment') {
         '''
         }
     }
-    }
 }
