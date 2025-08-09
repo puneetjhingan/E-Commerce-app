@@ -26,10 +26,10 @@ pipeline {
                 echo "Checking out branch ${GIT_BRANCH} from ${GIT_REPO}"
                 checkout([
                     $class: 'GitSCM',
-                    branches: [[name: "*/${GIT_BRANCH}"]],
+                    branches: [[name: "refs/heads/${GIT_BRANCH}"]],
                     userRemoteConfigs: [[
                         url: "${GIT_REPO}",
-                        credentialsId: 'github-creds' // ✅ Replace with your GitHub Jenkins creds ID
+                        credentialsId: 'github-creds'
                     ]]
                 ])
             }
