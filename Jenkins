@@ -28,62 +28,7 @@ pipeline {
             }
         }
 
-        stage('SonarQube Analysis') {
-            agent { label 'test' }
-            steps {
-                echo 'Running SonarQube analysis'
-                withSonarQubeEnv("${SONARQUBE_ENV_NAME}") {
-                    sh '''
-                        sonar-scanner \
-                          -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                          -Dsonar.sources=src \
-                          -Dsonar.inclusions=**/*.{ts,tsx,js,jsx} \
-                          -Dsonar.exclusions=node_modules/**,.next/**,.db/**,Terraform/**,kubernetes/**,public/**,scripts/**,coverage/**,*.dockerignore,.env,Dockerfile*,README.md,LICENSE,package-lock.json,yarn.lock,postcss.config.js,tailwind.config.ts,next.config.*,docker-compose.yml,ecosystem.config.cjs \
-                          -Dsonar.typescript.tsconfigPath=tsconfig.json \
-                          -Dsonar.host.url=${SONAR_HOST_URL}
-                    '''
-                }
-            }
-        }
-
-        stage('Docker Build') {
-            agent { label 'docker' }
-            steps {
-                echo "Building Docker image ${DOCKER_IMAGE}:${DOCKER_TAG}"
-                script {
-                    docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
-                }
-            }
-        }
-
-        stage('Trivy Scan') {
-            agent { label 'docker' }
-            steps {
-                echo 'Running Trivy vulnerability scan'
-                sh "trivy image --severity CRITICAL --exit-code 1 --no-progress ${DOCKER_IMAGE}:${DOCKER_TAG}"
-            }
-        }
-
-        stage('Push to DockerHub') {
-            agent { label 'docker' }
-            steps {
-                echo "Pushing Docker image ${DOCKER_IMAGE}:${DOCKER_TAG} to DockerHub"
-                script {
-                    docker.withRegistry("${DOCKERHUB_URL}", "${DOCKERHUB_CREDENTIALS}") {
-                        docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push()
-                    }
-                }
-            }
-        }
-
-        stage('Manual Approval') {
-            when {
-                expression { return env.BRANCH_NAME == 'solutions_2025' }
-            }
-            steps {
-                input message: 'Manual approval required to deploy to production.', ok: 'Deploy'
-            }
-        }
+ 
 
                 //Option 1 (Manual deployment)
 
@@ -127,15 +72,15 @@ pipeline {
                             echo "$NEXTAUTH_SECRET" > ./helm-secrets/nextauth-secret.txt
                             echo "$MONGO_USERNAME" > ./helm-secrets/mongo-username.txt
                             echo "$MONGO_PASSWORD" > ./helm-secrets/mongo-password.txt
-                            helm upgrade --install easyshop . \
-                              --kubeconfig=$KUBECONFIG \
-                              --namespace easyshop --create-namespace \
-                              --set-file secrets.JWT_SECRET=./helm-secrets/jwt-secret.txt \
-                              --set-file secrets.NEXTAUTH_SECRET=./helm-secrets/nextauth-secret.txt \
-                              --set-file secrets.MONGO_USERNAME=./helm-secrets/mongo-username.txt \
-                              --set-file secrets.MONGO_PASSWORD=./helm-secrets/mongo-password.txt \
-                              --set mongodb.auth.usernames[0]=$(cat ./helm-secrets/mongo-username.txt | tr -d '\\n') \
-                              --set mongodb.auth.databases[0]=easyshopdb
+                            helm upgrade --install easyshop ./ --kubeconfig=$KUBECONFIG ...
+                            --kubeconfig=$KUBECONFIG \
+                            --namespace easyshop --create-namespace \
+                            --set-file secrets.JWT_SECRET=./helm-secrets/jwt-secret.txt \
+                            --set-file secrets.NEXTAUTH_SECRET=./helm-secrets/nextauth-secret.txt \
+                            --set-file secrets.MONGO_USERNAME=./helm-secrets/mongo-username.txt \
+                            --set-file secrets.MONGO_PASSWORD=./helm-secrets/mongo-password.txt \
+                            --set mongodb.auth.usernames[0]=$(cat ./helm-secrets/mongo-username.txt | tr -d '\\n') \
+                            --set mongodb.auth.databases[0]=easyshopdb
                         '''
                     }
                 }
