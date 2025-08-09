@@ -7,7 +7,6 @@ pipeline {
         SONAR_PROJECT_KEY = 'my-project-key'
         SONAR_HOST_URL = 'http://127.0.0.1:9000'
         SONARQUBE_ENV_NAME = 'sonarserver'
-        BRANCH_NAME = "${GIT_BRANCH}"
         DOCKER_IMAGE = 'puneetjhingan/easyshop'
         DOCKER_TAG = "${BUILD_NUMBER}"
         DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
@@ -84,7 +83,7 @@ pipeline {
 
         stage('Manual Approval') {
             when {
-                expression { return env.BRANCH_NAME == 'solutions_2025' }
+                expression { return env.GIT_BRANCH == 'solutions_2025' }
             }
             steps {
                 input message: 'Manual approval required to deploy to production.', ok: 'Deploy'
