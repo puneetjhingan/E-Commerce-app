@@ -1,25 +1,25 @@
 # Stage 1: Builder
 FROM node:18-alpine AS builder
 
-# Set working directory
 WORKDIR /app
 
-# Install necessary build dependencies
-RUN apk add --no-cache python3 make g++
-
-# Copy package files and tsconfig
 COPY package*.json tsconfig.json ./
-
-# Copy scripts and data
-COPY scripts ./scripts
-COPY .db ./.db
-
-# Install dependencies
 RUN npm install
-RUN npm install --save-dev @types/mongoose
 
-# Set environment variables
-ENV NODE_ENV=development
+COPY scripts ./scripts
+RUN npx tsc --project tsconfig.json
+RUN npm prune --production
 
-# Command to run migration
-CMD ["npx", "ts-node", "--project", "scripts/tsconfig.json", "scripts/migrate-data.ts"]
+# Remove source .ts files — keep only compiled .js
+RUN find ./scripts -type f -name "*.ts" -delete
+
+# Stage 2: Final - Minimal runtime
+FROM gcr.io/distroless/nodejs18-debian11
+
+WORKDIR /app
+
+COPY --from=builder /app/scripts ./scripts
+COPY --from=builder /app/node_modules ./node_modules
+COPY --from=builder /app/package*.json ./
+
+CMD ["scripts/migrate-data.js"]
