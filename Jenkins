@@ -125,16 +125,19 @@ pipeline {
                         def chartDir = "${env.WORKSPACE}/${HELM_DIR}"
                         echo "Helm chart directory: ${chartDir}"
                         sh """
-                            helm upgrade --install easyshop "${chartDir}" \\
-                            --kubeconfig="${KUBECONFIG}" \\
-                            --namespace "${NAMESPACE}" --create-namespace \\
-                            --set-file secrets.JWT_SECRET="${chartDir}/helm-secrets/jwt-secret.txt" \\
-                            --set-file secrets.NEXTAUTH_SECRET="${chartDir}/helm-secrets/nextauth-secret.txt" \\
-                            --set-file secrets.MONGO_USERNAME="${chartDir}/helm-secrets/mongo-username.txt" \\
-                            --set-file secrets.MONGO_PASSWORD="${chartDir}/helm-secrets/mongo-password.txt" \\
-                            --set mongodb.auth.usernames[0]=\$(cat "${chartDir}/helm-secrets/mongo-username.txt" | tr -d '\\n') \\
-                            --set mongodb.auth.databases[0]=easyshopdb
+                        helm upgrade --install easyshop "${chartDir}" \\
+                        --kubeconfig="${KUBECONFIG}" \\
+                        --namespace "${NAMESPACE}" --create-namespace \\
+                        --set image.repository="${DOCKER_IMAGE}" \\
+                        --set image.tag="${DOCKER_TAG}" \\
+                        --set-file secrets.JWT_SECRET="${chartDir}/helm-secrets/jwt-secret.txt" \\
+                        --set-file secrets.NEXTAUTH_SECRET="${chartDir}/helm-secrets/nextauth-secret.txt" \\
+                        --set-file secrets.MONGO_USERNAME="${chartDir}/helm-secrets/mongo-username.txt" \\
+                        --set-file secrets.MONGO_PASSWORD="${chartDir}/helm-secrets/mongo-password.txt" \\
+                        --set mongodb.auth.usernames[0]=\$(cat "${chartDir}/helm-secrets/mongo-username.txt" | tr -d '\\n') \\
+                        --set mongodb.auth.databases[0]=easyshopdb
                         """
+                        }
                     }
                 }
             }
