@@ -1,42 +1,38 @@
 # Node & Package Manager
 node_modules
-.dockerignore
-Dockerfile
-*.log
-*.md
-.git
-.gitignore
-.env
-.env.*
-coverage
-tests
-.vscode
+.npm
+.yarn
+.pnpm-store
+*.tgz
+.db
 
-
-# Next.js build output
+# Build Output
 .next
 out
 .cache
+dist
+build
 
-# Environment variables
+# Environment Variables
 .env*
-!.env.example  # keep example if needed
+!.env.example
 
-# Version Control
-.git
-.gitignore
+# Logs & Temp
+*.log
+*.pid
+*.tmp
+*.bak
 
-# Docker-related files
-Dockerfile*
-.dockerignore
-docker-compose.yml
-
-# IDE / Editor / OS
+# Editor / OS
 .vscode
 .idea
 *.swp
 .DS_Store
 Thumbs.db
+
+# Version Control
+.git
+.gitignore
 
 # Test & Coverage
 coverage
@@ -49,5 +45,3 @@ cypress/
 # Docs
 README.md
 *.md
-
-#Put any other files or directories!
