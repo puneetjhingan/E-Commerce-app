@@ -14,7 +14,7 @@ pipeline {
         DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
         DOCKERHUB_URL = 'https://index.docker.io/v1/'
 
-        HELM_DIR = 'helm'  // Since your code & helm charts are inside this folder
+        HELM_DIR = 'helm'
         NAMESPACE = 'easyshop'
     }
 
@@ -24,7 +24,7 @@ pipeline {
             agent { label 'linux' }
             steps {
                 echo "Checking out branch ${GIT_BRANCH} from ${GIT_REPO}"
-                git branch: "${GIT_BRANCH}", url: "${GIT_REPO}" // Add credentialsId if private repo
+                //git branch: "${GIT_BRANCH}", url: "${GIT_REPO}"
             }
         }
 
@@ -84,6 +84,7 @@ pipeline {
                 input message: 'Manual approval required to deploy to production.', ok: 'Deploy'
             }
         }
+
                 //Option 1 (Manual deployment)
 
 //         stage('Kubernetes Apply') {
@@ -109,8 +110,6 @@ pipeline {
 //     }
 // }
 
-  
-
         stage('Helm Deployment') {
             agent { label 'linux' }
             steps {
@@ -120,17 +119,22 @@ pipeline {
                         string(credentialsId: 'jwt-secret', variable: 'JWT_SECRET'),
                         string(credentialsId: 'nextauth-secret', variable: 'NEXTAUTH_SECRET'),
                         string(credentialsId: 'mongo-username', variable: 'MONGO_USERNAME'),
-                        string(credentialsId: 'mongo-password', variable: 'MONGO_PASSWORD')
+                        string(credentialsId: 'mongo-password', variable: 'MONGO_PASSWORD'),
+                        string(credentialsId: 'kubeconfig', variable: 'KUBECONFIG_CONTENT')
                     ]) {
                         sh '''
+                            mkdir -p ~/.kube
+                            echo "$KUBECONFIG_CONTENT" > ~/.kube/config
+                            chmod 600 ~/.kube/config
+
                             mkdir -p ./helm-secrets
                             echo "$JWT_SECRET" > ./helm-secrets/jwt-secret.txt
                             echo "$NEXTAUTH_SECRET" > ./helm-secrets/nextauth-secret.txt
                             echo "$MONGO_USERNAME" > ./helm-secrets/mongo-username.txt
                             echo "$MONGO_PASSWORD" > ./helm-secrets/mongo-password.txt
 
-                            helm upgrade --install easyshop ./ \
-                              --namespace ${NAMESPACE} --create-namespace \
+                            helm upgrade --install easyshop ./helm \
+                              --namespace easyshop --create-namespace \
                               --set-file secrets.JWT_SECRET=./helm-secrets/jwt-secret.txt \
                               --set-file secrets.NEXTAUTH_SECRET=./helm-secrets/nextauth-secret.txt \
                               --set-file secrets.MONGO_USERNAME=./helm-secrets/mongo-username.txt \
@@ -146,7 +150,7 @@ pipeline {
 
     post {
         failure {
-            echo ' Pipeline failed. Check logs for details.'
+            echo 'Pipeline failed. Check logs for details.'
         }
         always {
             cleanWs()
