@@ -33,33 +33,23 @@ pipeline {
         stage('Helm Deployment') {
             agent { label 'linux' }
             steps {
-                dir("${HELM_DIR}") {
-                    sh 'echo "Current dir:" && pwd'
-                    sh 'ls -la'
-                    withCredentials([
-                        file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG'),
-                        string(credentialsId: 'jwt-secret', variable: 'JWT_SECRET'),
-                        string(credentialsId: 'nextauth-secret', variable: 'NEXTAUTH_SECRET'),
-                        string(credentialsId: 'mongo-username', variable: 'MONGO_USERNAME'),
-                        string(credentialsId: 'mongo-password', variable: 'MONGO_PASSWORD')
-                    ]) {
-                        sh '''
-                            mkdir -p ./helm-secrets
-                            echo "$JWT_SECRET" > ./helm-secrets/jwt-secret.txt
-                            echo "$NEXTAUTH_SECRET" > ./helm-secrets/nextauth-secret.txt
-                            echo "$MONGO_USERNAME" > ./helm-secrets/mongo-username.txt
-                            echo "$MONGO_PASSWORD" > ./helm-secrets/mongo-password.txt
-                            helm upgrade --install easyshop ./ --kubeconfig=$KUBECONFIG --namespace $NAMESPACE --create-namespace \\
-                                --set-file secrets.JWT_SECRET=./helm-secrets/jwt-secret.txt \\
-                                --set-file secrets.NEXTAUTH_SECRET=./helm-secrets/nextauth-secret.txt \\
-                                --set-file secrets.MONGO_USERNAME=./helm-secrets/mongo-username.txt \\
-                                --set-file secrets.MONGO_PASSWORD=./helm-secrets/mongo-password.txt \\
-                                --set mongodb.auth.usernames[0]=$(cat ./helm-secrets/mongo-username.txt | tr -d '\\n') \\
-                                --set mongodb.auth.databases[0]=easyshopdb
-                '''
-                    }
-                }
-            }
+                script {
+                    def chartDir = "${env.WORKSPACE}/${HELM_DIR}"
+                    echo "Helm chart directory: ${chartDir}"
+                    sh """
+                    echo "Current directory: \$(pwd)"
+                    echo "Listing files:"
+                    ls -la "${chartDir}"
+                    helm upgrade --install easyshop "${chartDir}" \\
+                    --kubeconfig="${KUBECONFIG}" \\
+                    --namespace "${NAMESPACE}" --create-namespace \\
+                    --set-file secrets.JWT_SECRET="${chartDir}/helm-secrets/jwt-secret.txt" \\
+                    --set-file secrets.NEXTAUTH_SECRET="${chartDir}/helm-secrets/nextauth-secret.txt" \\
+                    --set-file secrets.MONGO_USERNAME="${chartDir}/helm-secrets/mongo-username.txt" \\
+                    --set-file secrets.MONGO_PASSWORD="${chartDir}/helm-secrets/mongo-password.txt" \\
+                    --set mongodb.auth.usernames[0]=\$(cat "${chartDir}/helm-secrets/mongo-username.txt" | tr -d '\\n') \\
+                    --set mongodb.auth.databases[0]=easyshopdb
+            """
         }
     }
 }
