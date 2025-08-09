@@ -109,36 +109,36 @@ pipeline {
 //         }
 //     }
 // }
-stage('Helm Deployment') {
-    agent { label 'linux' }
-    steps {
-    dir("${HELM_DIR}") {
-        echo 'Deploying with Helm using Jenkins secrets'
-        withCredentials([
-        file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG'),
-        string(credentialsId: 'jwt-secret', variable: 'JWT_SECRET'),
-        string(credentialsId: 'nextauth-secret', variable: 'NEXTAUTH_SECRET'),
-        string(credentialsId: 'mongo-username', variable: 'MONGO_USERNAME'),
-        string(credentialsId: 'mongo-password', variable: 'MONGO_PASSWORD')
-        ]) {
-        sh '''
-            mkdir -p ./helm-secrets
-            echo "$JWT_SECRET" > ./helm-secrets/jwt-secret.txt
-            echo "$NEXTAUTH_SECRET" > ./helm-secrets/nextauth-secret.txt
-            echo "$MONGO_USERNAME" > ./helm-secrets/mongo-username.txt
-            echo "$MONGO_PASSWORD" > ./helm-secrets/mongo-password.txt
-
-            helm upgrade --install easyshop . \
-              --kubeconfig=$KUBECONFIG \
-              --namespace easyshop --create-namespace \
-              --set-file secrets.JWT_SECRET=./helm-secrets/jwt-secret.txt \
-              --set-file secrets.NEXTAUTH_SECRET=./helm-secrets/nextauth-secret.txt \
-              --set-file secrets.MONGO_USERNAME=./helm-secrets/mongo-username.txt \
-              --set-file secrets.MONGO_PASSWORD=./helm-secrets/mongo-password.txt \
-              --set mongodb.auth.usernames[0]=$(cat ./helm-secrets/mongo-username.txt | tr -d '\\n') \
-              --set mongodb.auth.databases[0]=easyshopdb
+        stage('Helm Deployment') {
+            agent { label 'linux' }
+            steps {
+                dir("${HELM_DIR}") {
+                    echo 'Deploying with Helm using Jenkins secrets'
+                    withCredentials([
+                        file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG'),
+                        string(credentialsId: 'jwt-secret', variable: 'JWT_SECRET'),
+                        string(credentialsId: 'nextauth-secret', variable: 'NEXTAUTH_SECRET'),
+                        string(credentialsId: 'mongo-username', variable: 'MONGO_USERNAME'),
+                        string(credentialsId: 'mongo-password', variable: 'MONGO_PASSWORD')
+                    ]) {
+                        sh '''
+                            mkdir -p ./helm-secrets
+                            echo "$JWT_SECRET" > ./helm-secrets/jwt-secret.txt
+                            echo "$NEXTAUTH_SECRET" > ./helm-secrets/nextauth-secret.txt
+                            echo "$MONGO_USERNAME" > ./helm-secrets/mongo-username.txt
+                            echo "$MONGO_PASSWORD" > ./helm-secrets/mongo-password.txt
+                            helm upgrade --install easyshop . \
+                            --kubeconfig=$KUBECONFIG \
+                            --namespace easyshop --create-namespace \
+                            --set-file secrets.JWT_SECRET=./helm-secrets/jwt-secret.txt \
+                            --set-file secrets.NEXTAUTH_SECRET=./helm-secrets/nextauth-secret.txt \
+                            --set-file secrets.MONGO_USERNAME=./helm-secrets/mongo-username.txt \
+                            --set-file secrets.MONGO_PASSWORD=./helm-secrets/mongo-password.txt \
+                            --set mongodb.auth.usernames[0]=$(cat ./helm-secrets/mongo-username.txt | tr -d '\\n') \
+                            --set mongodb.auth.databases[0]=easyshopdb
         '''
+                    }
+                }
+            }
         }
-    }
-    }
     }
