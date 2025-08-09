@@ -1,17 +1,21 @@
 pipeline {
     agent any
-
+    
     environment {
         GIT_BRANCH = 'solutions_2025'
         GIT_REPO = 'https://github.com/puneetjhingan/E-Commerce-app'
-
+        SONAR_PROJECT_KEY = 'my-project-key'
+        SONAR_HOST_URL = 'http://127.0.0.1:9000'
+        SONARQUBE_ENV_NAME = 'sonarserver'
+        BRANCH_NAME = "${GIT_BRANCH}"
         DOCKER_IMAGE = 'puneetjhingan/easyshop'
         DOCKER_TAG = "${BUILD_NUMBER}"
         DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
-
+        DOCKERHUB_URL = 'https://index.docker.io/v1/'
         HELM_DIR = 'helm'
         NAMESPACE = 'easyshop'
-    }
+        }
+
 
     stages {
 
