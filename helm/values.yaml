@@ -7,7 +7,7 @@ replicaCount: 1
 # Image configuration
 image:
   repository: puneetjhingan/easyshop-app
-  tag: ""
+  tag: "latest"
   pullPolicy: IfNotPresent
 
 # Image pull secrets for private repos
