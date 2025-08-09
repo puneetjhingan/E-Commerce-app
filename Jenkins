@@ -50,6 +50,8 @@ pipeline {
                     --set mongodb.auth.usernames[0]=\$(cat "${chartDir}/helm-secrets/mongo-username.txt" | tr -d '\\n') \\
                     --set mongodb.auth.databases[0]=easyshopdb
             """
+                }
+            }
         }
     }
 }
