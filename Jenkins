@@ -26,7 +26,7 @@ pipeline {
                 echo "Checking out branch ${GIT_BRANCH} from ${GIT_REPO}"
                 checkout([
                     $class: 'GitSCM',
-                    branches: [[name: "refs/heads/${GIT_BRANCH}"]],
+                    branches: [[name: "${GIT_BRANCH}"]],
                     userRemoteConfigs: [[
                         url: "${GIT_REPO}",
                         credentialsId: 'github-creds'
@@ -34,6 +34,8 @@ pipeline {
                 ])
             }
         }
+
+        // Optional: Add more stages like SonarQube, Docker build, etc.
 
         stage('Helm Deployment') {
             agent { label 'linux' }
