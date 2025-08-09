@@ -13,10 +13,9 @@ pipeline {
         DOCKER_TAG = "${BUILD_NUMBER}"
         DOCKERHUB_CREDENTIALS = 'dockerhub-creds'
         DOCKERHUB_URL = 'https://index.docker.io/v1/'
-        DEPLOYMENT_NAME = 'easyshop-deployment'
+
+        HELM_DIR = 'helm'  // Since your code & helm charts are inside this folder
         NAMESPACE = 'easyshop'
-        IMAGE_NAME = 'puneetjhingan/easyshop:1.0'
-        CONTAINER_NAME = 'easyshop'
     }
 
     stages {
@@ -24,24 +23,24 @@ pipeline {
         stage('Checkout Code') {
             agent { label 'linux' }
             steps {
-                echo "Pulling code from GitHub branch ${GIT_BRANCH}"
-                // git branch: "${GIT_BRANCH}", url: "${GIT_REPO}", credentialsId: 'github-creds'
+                echo "Checking out branch ${GIT_BRANCH} from ${GIT_REPO}"
+                git branch: "${GIT_BRANCH}", url: "${GIT_REPO}" // Add credentialsId if private repo
             }
         }
 
         stage('SonarQube Analysis') {
             agent { label 'test' }
             steps {
-                echo 'Running SonarQube analysis for easy-shop project'
+                echo 'Running SonarQube analysis'
                 withSonarQubeEnv("${SONARQUBE_ENV_NAME}") {
                     sh '''
                         sonar-scanner \
-                            -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
-                            -Dsonar.sources=src \
-                            -Dsonar.inclusions=**/*.{ts,tsx,js,jsx} \
-                            -Dsonar.exclusions=node_modules/**,.next/**,.db/**,Terraform/**,kubernetes/**,public/**,scripts/**,coverage/**,*.dockerignore,.env,Dockerfile*,README.md,LICENSE,package-lock.json,yarn.lock,postcss.config.js,tailwind.config.ts,next.config.*,docker-compose.yml,ecosystem.config.cjs \
-                            -Dsonar.typescript.tsconfigPath=tsconfig.json \
-                            -Dsonar.host.url=${SONAR_HOST_URL}
+                          -Dsonar.projectKey=${SONAR_PROJECT_KEY} \
+                          -Dsonar.sources=src \
+                          -Dsonar.inclusions=**/*.{ts,tsx,js,jsx} \
+                          -Dsonar.exclusions=node_modules/**,.next/**,.db/**,Terraform/**,kubernetes/**,public/**,scripts/**,coverage/**,*.dockerignore,.env,Dockerfile*,README.md,LICENSE,package-lock.json,yarn.lock,postcss.config.js,tailwind.config.ts,next.config.*,docker-compose.yml,ecosystem.config.cjs \
+                          -Dsonar.typescript.tsconfigPath=tsconfig.json \
+                          -Dsonar.host.url=${SONAR_HOST_URL}
                     '''
                 }
             }
@@ -50,7 +49,7 @@ pipeline {
         stage('Docker Build') {
             agent { label 'docker' }
             steps {
-                echo 'Building Docker image'
+                echo "Building Docker image ${DOCKER_IMAGE}:${DOCKER_TAG}"
                 script {
                     docker.build("${DOCKER_IMAGE}:${DOCKER_TAG}")
                 }
@@ -68,12 +67,11 @@ pipeline {
         stage('Push to DockerHub') {
             agent { label 'docker' }
             steps {
-                echo 'Pushing Docker image to DockerHub'
+                echo "Pushing Docker image ${DOCKER_IMAGE}:${DOCKER_TAG} to DockerHub"
                 script {
                     docker.withRegistry("${DOCKERHUB_URL}", "${DOCKERHUB_CREDENTIALS}") {
                         docker.image("${DOCKER_IMAGE}:${DOCKER_TAG}").push()
                     }
-                    echo "Docker image ${DOCKER_IMAGE}:${DOCKER_TAG} pushed successfully"
                 }
             }
         }
@@ -83,13 +81,10 @@ pipeline {
                 expression { return env.BRANCH_NAME == 'solutions_2025' }
             }
             steps {
-                script {
-                    input message: 'Manual approval required to deploy to production.', ok: 'Deploy'
-                }
+                input message: 'Manual approval required to deploy to production.', ok: 'Deploy'
             }
         }
-
-        //Option 1 (Manual deployment)
+                //Option 1 (Manual deployment)
 
 //         stage('Kubernetes Apply') {
 //             agent { label 'linux' }
@@ -114,15 +109,13 @@ pipeline {
 //     }
 // }
 
-  // options 2 ( Helm deployment)
+  
 
-        HELM_DIR = 'E-Commerce-app/helm'
-    }
         stage('Helm Deployment') {
             agent { label 'linux' }
             steps {
                 dir("${HELM_DIR}") {
-                    echo '📦 Deploying using Helm charts'
+                    echo 'Deploying with Helm using Jenkins secrets'
                     withCredentials([
                         string(credentialsId: 'jwt-secret', variable: 'JWT_SECRET'),
                         string(credentialsId: 'nextauth-secret', variable: 'NEXTAUTH_SECRET'),
@@ -130,9 +123,14 @@ pipeline {
                         string(credentialsId: 'mongo-password', variable: 'MONGO_PASSWORD')
                     ]) {
                         sh '''
+                            mkdir -p ./helm-secrets
+                            echo "$JWT_SECRET" > ./helm-secrets/jwt-secret.txt
+                            echo "$NEXTAUTH_SECRET" > ./helm-secrets/nextauth-secret.txt
+                            echo "$MONGO_USERNAME" > ./helm-secrets/mongo-username.txt
+                            echo "$MONGO_PASSWORD" > ./helm-secrets/mongo-password.txt
 
-                            helm upgrade --install easyshop ./helm \
-                              --namespace easyshop --create-namespace \
+                            helm upgrade --install easyshop ./ \
+                              --namespace ${NAMESPACE} --create-namespace \
                               --set-file secrets.JWT_SECRET=./helm-secrets/jwt-secret.txt \
                               --set-file secrets.NEXTAUTH_SECRET=./helm-secrets/nextauth-secret.txt \
                               --set-file secrets.MONGO_USERNAME=./helm-secrets/mongo-username.txt \
@@ -143,6 +141,15 @@ pipeline {
                     }
                 }
             }
+        }
+    }
+
+    post {
+        failure {
+            echo ' Pipeline failed. Check logs for details.'
+        }
+        always {
+            cleanWs()
         }
     }
 }
