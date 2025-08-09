@@ -1,0 +1,9 @@
+helm install easyshop ./helm \
+  --namespace easyshop --create-namespace \
+  --set-file secrets.JWT_SECRET=./helm-secrets/jwt-secret.txt \
+  --set-file secrets.NEXTAUTH_SECRET=./helm-secrets/nextauth-secret.txt \
+  --set-file secrets.MONGO_USERNAME=./helm-secrets/mongo-username.txt \
+  --set-file secrets.MONGO_PASSWORD=./helm-secrets/mongo-password.txt \
+  --set mongodb.auth.usernames[0]=$(cat ./helm-secrets/mongo-username.txt) \
+  --set mongodb.auth.databases[0]=easyshopdb
+

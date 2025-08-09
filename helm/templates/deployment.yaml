@@ -1,0 +1,67 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ include "helm.fullname" . }}
+  namespace: {{ .Release.Namespace }}
+  labels:
+    app: {{ include "helm.name" . }}
+spec:
+  replicas: {{ .Values.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ include "helm.name" . }}
+  template:
+    metadata:
+      labels:
+        app: {{ include "helm.name" . }}
+    spec:
+      serviceAccountName: {{ include "helm.serviceAccountName" . }}
+      containers:
+        - name: {{ include "helm.name" . }}
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: {{ .Values.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.service.targetPort }}
+
+          # ConfigMap and secrets
+          envFrom:
+            - configMapRef:
+                name: {{ include "helm.fullname" . }}-config
+            - secretRef:
+                name: {{ include "helm.fullname" . }}-secrets
+
+          # MONGODB_URI separately
+          env:
+            - name: MONGODB_URI
+              value: >-
+                mongodb://{{ .Values.mongodb.auth.username }}:{{ .Values.mongodb.auth.password }}
+                @{{ .Values.database.host }}:{{ .Values.database.port }}/{{ .Values.mongodb.auth.database }}
+
+          resources:
+            requests:
+              cpu: {{ .Values.resources.requests.cpu }}
+              memory: {{ .Values.resources.requests.memory }}
+            limits:
+              cpu: {{ .Values.resources.limits.cpu }}
+              memory: {{ .Values.resources.limits.memory }}
+
+          livenessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.targetPort }}
+            initialDelaySeconds: 25
+            periodSeconds: 20
+
+          readinessProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.targetPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+
+          startupProbe:
+            httpGet:
+              path: /
+              port: {{ .Values.service.targetPort }}
+            initialDelaySeconds: 5
+            periodSeconds: 10

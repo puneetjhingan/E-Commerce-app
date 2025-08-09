@@ -1,0 +1,28 @@
+{{- if .Values.migrationJob.enabled }}
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: {{ include "helm.fullname" . }}-migration
+  namespace: {{ .Release.Namespace }}
+spec:
+  backoffLimit: {{ .Values.migrationJob.backoffLimit }}
+  template:
+    spec:
+      restartPolicy: OnFailure
+      containers:
+        - name: migration
+          image: "{{ .Values.migrationJob.image.repository }}:{{ .Values.migrationJob.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          env:
+            - name: MONGODB_URI
+              value: {{ .Values.config.MONGODB_URI | quote }}
+            - name: NODE_ENV
+              value: {{ .Values.config.NODE_ENV | quote }}
+          resources:
+            requests:
+              memory: 256Mi
+              cpu: 200m
+            limits:
+              memory: 512Mi
+              cpu: 500m
+{{- end }}

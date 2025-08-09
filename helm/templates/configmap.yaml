@@ -1,0 +1,10 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ include "helm.fullname" . }}-config
+  namespace: {{ .Release.Namespace }}
+data:
+  MONGODB_URI: {{ .Values.config.MONGODB_URI | quote }}
+  NODE_ENV: {{ .Values.config.NODE_ENV | quote }}
+  NEXTAUTH_URL: {{ .Values.config.NEXTAUTH_URL | quote }}
+  NEXT_PUBLIC_API_URL: {{ .Values.config.NEXT_PUBLIC_API_URL | quote }}
