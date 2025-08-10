@@ -98,48 +98,58 @@ pipeline {
 //                 dir('E-Commerce-app/kubernetes') {
 //                     echo 'Applying Kubernetes manifests'
 //                     sh '''
-//                         kubectl apply -f 01-namespace.yml
-//                         kubectl apply -f 02-mongodb-pv.yml
-//                         kubectl apply -f 03-mongodb-pvc.yml
-//                         kubectl apply -f 04-configmap.yml
-//                         kubectl apply -f 05-secrets.yml
-//                         kubectl apply -f 06-mongodb-service.yml
-//                         kubectl apply -f 07-mongodb-statefulset.yml
-//                         kubectl apply -f 08-easyshop-deployment.yml
-//                         kubectl apply -f 09-easyshop-service.yml
-//                         kubectl apply -f 10-ingress.yml
-//                         kubectl apply -f 11-hpa.yml
-//                         kubectl apply -f 12-migration-job.yml
+//                         kubectl apply -f .
 //             '''
 //         }
 //     }
 // }
         //Option 2 ( Helm Deployment )
 
-        stage('Helm Deployment') {
+    //     stage('Helm Deployment') {
+    //         agent { label 'linux' }
+    //         steps {
+    //             withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+    //                 script {
+    //                     def chartDir = "${env.WORKSPACE}/${HELM_DIR}"
+    //                     echo "Helm chart directory: ${chartDir}"
+    //                     sh """
+    //                     helm upgrade --install easyshop "${chartDir}" \\
+    //                     --kubeconfig="${KUBECONFIG}" \\
+    //                     --namespace "${NAMESPACE}" --create-namespace \\
+    //                     --set image.repository="${DOCKER_IMAGE}" \\
+    //                     --set image.tag="${DOCKER_TAG}" \\
+    //                     --set-file secrets.JWT_SECRET="${chartDir}/helm-secrets/jwt-secret.txt" \\
+    //                     --set-file secrets.NEXTAUTH_SECRET="${chartDir}/helm-secrets/nextauth-secret.txt" \\
+    //                     --set-file secrets.MONGO_USERNAME="${chartDir}/helm-secrets/mongo-username.txt" \\
+    //                     --set-file secrets.MONGO_PASSWORD="${chartDir}/helm-secrets/mongo-password.txt" \\
+    //                     --set mongodb.auth.usernames[0]=\$(cat "${chartDir}/helm-secrets/mongo-username.txt" | tr -d '\\n') \\
+    //                     --set mongodb.auth.databases[0]=easyshopdb
+    //                     """
+    //                     }
+    //                 }
+    //             }
+    //         }
+    //     }
+    // }
+             //option 3 ( ArgoCD Deployment  takeover)
+
+        stage('Update Helm Tag and Push') {
             agent { label 'linux' }
             steps {
-                withCredentials([file(credentialsId: 'kubeconfig', variable: 'KUBECONFIG')]) {
+                withCredentials([usernamePassword(credentialsId: 'github-creds', usernameVariable: 'GIT_USER', passwordVariable: 'GIT_PASS')]) {
                     script {
-                        def chartDir = "${env.WORKSPACE}/${HELM_DIR}"
-                        echo "Helm chart directory: ${chartDir}"
                         sh """
-                        helm upgrade --install easyshop "${chartDir}" \\
-                        --kubeconfig="${KUBECONFIG}" \\
-                        --namespace "${NAMESPACE}" --create-namespace \\
-                        --set image.repository="${DOCKER_IMAGE}" \\
-                        --set image.tag="${DOCKER_TAG}" \\
-                        --set-file secrets.JWT_SECRET="${chartDir}/helm-secrets/jwt-secret.txt" \\
-                        --set-file secrets.NEXTAUTH_SECRET="${chartDir}/helm-secrets/nextauth-secret.txt" \\
-                        --set-file secrets.MONGO_USERNAME="${chartDir}/helm-secrets/mongo-username.txt" \\
-                        --set-file secrets.MONGO_PASSWORD="${chartDir}/helm-secrets/mongo-password.txt" \\
-                        --set mongodb.auth.usernames[0]=\$(cat "${chartDir}/helm-secrets/mongo-username.txt" | tr -d '\\n') \\
-                        --set mongodb.auth.databases[0]=easyshopdb
-                        """
-                        }
-                    }
+                        git config user.name "ci-bot"
+                        git config user.email "ci-bot@yourorg.com"
+
+                        sed -i 's|tag:.*|tag: "${DOCKER_TAG}"|' helm/values.yaml
+
+                        git add helm/values.yaml
+                        git commit -m "Update Docker image tag to ${DOCKER_TAG}"
+                        git push https://${GIT_USER}:${GIT_PASS}@github.com/puneetjhingan/E-Commerce-app.git ${GIT_BRANCH}
+                    """
                 }
             }
         }
     }
-
+}
