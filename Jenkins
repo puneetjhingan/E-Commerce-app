@@ -142,7 +142,7 @@ pipeline {
                         git config user.name "ci-bot"
                         git config user.email "ci-bot@yourorg.com"
 
-                        sed -i 's|tag:.*|tag: "${DOCKER_TAG}"|' helm/values.yaml
+                        sed -i .bak 's|tag:.*|tag: "${DOCKER_TAG}"|' helm/values.yaml
 
                         git add helm/values.yaml
                         git commit -m "Update Docker image tag to ${DOCKER_TAG}"

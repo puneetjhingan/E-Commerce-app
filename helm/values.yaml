@@ -113,14 +113,14 @@ database:
 mongodb:
   enabled: true
   auth:
-    username: ""  # Injected securely with --set-file
-    password: ""  # Injected securely with --set-file
-    database: easyshop
+    enabled: true
+    existingSecret: mongodb-auth-secret
   architecture: standalone
   primary:
     persistence:
       enabled: true
       size: 8Gi
+
 
 # App Persistent Volume
 persistence:
@@ -143,10 +143,10 @@ statefulSet:
           requests:
             storage: 5Gi
 
-# Migration Job  ( Run as seperate job manually)
-migrationJob:
-  enabled: false
-  image:
-    repository: puneetjhingan/migration
-    tag: "latest"
-  backoffLimit: 4
+# # Migration Job  ( Run as seperate job manually)
+# migrationJob:
+#   enabled: false
+#   image:
+#     repository: puneetjhingan/migration
+#     tag: "latest"
+#   backoffLimit: 4
